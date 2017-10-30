@@ -36,13 +36,45 @@ static int send_to_user(int index);
 int grp = 1;
 module_param(grp,int,S_IRUSR);
 
+int send_usrmsg(char *pbuf, uint16_t len)
+{
+    struct sk_buff *nl_skb;
+    struct nlmsghdr *nlh;
 
-/*
+    int ret;
+
+    /* 创建sk_buff 空间 */
+    nl_skb = nlmsg_new(len, GFP_ATOMIC);
+    if(!nl_skb)
+    {
+        printk("netlink alloc failure\n");
+        return -1;
+    }
+
+    /* 设置netlink消息头部 */
+    nlh = nlmsg_put(nl_skb, 0, 0, NETLINK_TEST, len, 0);
+    if(nlh == NULL)
+    {
+        printk("nlmsg_put failaure \n");
+        nlmsg_free(nl_skb);
+        return -1;
+    }
+
+    /* 拷贝数据发送 */
+    memcpy(nlmsg_data(nlh), pbuf, len);
+    ret = netlink_unicast(nlsk, nl_skb, USER_PORT, MSG_DONTWAIT);
+
+    return ret;
+}
+
+
+
+
 static void netlink_rcv_msg(struct sk_buff *skb)
 {
     struct nlmsghdr *nlh = NULL;
     char *umsg = NULL;
-    char *kmsg = "hello users!!!";
+
 
     if(skb->len >= nlmsg_total_size(0))
     {
@@ -51,20 +83,20 @@ static void netlink_rcv_msg(struct sk_buff *skb)
         if(umsg)
         {
             printk("kernel recv from user: %s\n", umsg);
-            send_usrmsg(kmsg, strlen(kmsg));
+//            send_usrmsg(kmsg, strlen(kmsg));
         }
     }
 }
-*/
+
 
 struct netlink_kernel_cfg cfg = { 
-//        .input  = netlink_rcv_msg, /* set recv callback */
+        .input  = netlink_rcv_msg, /* set recv callback */
 		.groups = 1 << NLK_DPI
 };  
 
 static void timer_do_func(unsigned long arg)
 {
-	zc_timer.expires = jiffies + 10 * HZ;
+	zc_timer.expires = jiffies + 5 * HZ;
 	i++;
 	printk(KERN_DEBUG "now is %d ... %d\n", i, grp);
 	send_to_user(i);

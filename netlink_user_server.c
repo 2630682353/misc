@@ -36,11 +36,12 @@ int netlink_init()
         return -1;
     }
 	int grp = 0;
-	grp |= 1 << NLK_DPI;
-	grp |= 1 << NLK_WEBSERVER;
-	grp |= 1 << NLK_GATEWAY;
-	grp |= 1 << 3;
-	grp |= 1 << 4;
+	grp |= (1 << 0);
+	
+	grp |= (1 << 2);
+    
+    grp |= (1 << 4);
+    grp |= (1 << 5);
 	memset(&saddr, 0, sizeof(saddr));
     saddr.nl_family = AF_NETLINK; //AF_NETLINK
     saddr.nl_pid = getpid();
@@ -56,7 +57,7 @@ int netlink_init()
 }
 
 /*
-int main(int argc, char **argv)
+int user_client_init()
 {
     int skfd;
     int ret;
@@ -130,11 +131,31 @@ int main()
 	int fd = netlink_init();
 	user_msg_info u_info;
 	int len = 0;
+    struct nlmsghdr *nlh = NULL;
+    struct sockaddr_nl saddr, daddr;
+    char *umsg = "hello netlink!!";
+    socklen_t len2;
+    int ret = 0;
 	while(1){
 		memset(&u_info, 0, sizeof(u_info));
+        len = sizeof(struct sockaddr_nl);
 	
-		len = recvfrom(fd, &u_info, sizeof(user_msg_info), 0, NULL, NULL);
+		len = recvfrom(fd, &u_info, sizeof(user_msg_info), 0, (struct sockaddr *)&daddr, &len2);
 		printf("size: %d  %s\n", len, u_info.msg);
+
+        nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PLOAD));
+        memset(nlh, 0, sizeof(struct nlmsghdr));
+        nlh->nlmsg_len = NLMSG_SPACE(MAX_PLOAD);
+        nlh->nlmsg_flags = 0;
+        nlh->nlmsg_type = 0;
+        nlh->nlmsg_seq = 0;
+        nlh->nlmsg_pid = 100; //self port
+
+        memcpy(NLMSG_DATA(nlh), umsg, strlen(umsg));
+        ret = sendto(fd, nlh, nlh->nlmsg_len, 0, (struct sockaddr *)&daddr, len2);
+        if (ret < 1) {
+            printf("sendto error\n");
+        }
 
 	}
 
