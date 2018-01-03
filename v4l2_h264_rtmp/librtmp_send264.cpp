@@ -29,7 +29,7 @@
 //定义包头长度，RTMP_MAX_HEADER_SIZE=18
 #define RTMP_HEAD_SIZE   (sizeof(RTMPPacket)+RTMP_MAX_HEADER_SIZE)
 //存储Nal单元数据的buffer大小
-#define BUFFER_SIZE 32768
+#define BUFFER_SIZE 8192
 //搜寻Nal单元时的一些标志
 #define GOT_A_NAL_CROSS_BUFFER BUFFER_SIZE+1
 #define GOT_A_NAL_INCLUDE_A_BUFFER BUFFER_SIZE+2
@@ -566,7 +566,9 @@ int ReadOneNaluFromBuf(NaluUnit &nalu,int (*read_buffer)(uint8_t *buf, int buf_s
 			nalu.size = BUFFER_SIZE-nalhead_pos;
 			nalu.type = m_pFileBuf[nalhead_pos]&0x1f; 
 			memcpy(m_pFileBuf_tmp,m_pFileBuf+nalhead_pos,nalu.size);
-			if((ret=read_buffer(m_pFileBuf,m_nFileBufSize))<BUFFER_SIZE)
+			int left_size = BUFFER_SIZE;
+			int current_offset = 0;
+			while((ret=read_buffer(m_pFileBuf + current_offset,left_size))<left_size)
 			{
 				/*
 				memcpy(m_pFileBuf_tmp+nalu.size,m_pFileBuf,ret);
@@ -575,7 +577,10 @@ int ReadOneNaluFromBuf(NaluUnit &nalu,int (*read_buffer)(uint8_t *buf, int buf_s
 				nalhead_pos=NO_MORE_BUFFER_TO_READ;
 				return FALSE;
 				*/
-				read_buffer(m_pFileBuf + ret, BUFFER_SIZE - ret);
+				
+				//read_buffer(m_pFileBuf + ret, BUFFER_SIZE - ret);
+				current_offset += ret;
+				left_size -= ret;
 			}
 			naltail_pos=0;
 			nalhead_pos=GOT_A_NAL_CROSS_BUFFER;
@@ -593,14 +598,20 @@ int ReadOneNaluFromBuf(NaluUnit &nalu,int (*read_buffer)(uint8_t *buf, int buf_s
 				}
 
 			memcpy(m_pFileBuf_tmp+nalu.size-BUFFER_SIZE,m_pFileBuf,BUFFER_SIZE);
-			
-			if((ret=read_buffer(m_pFileBuf,m_nFileBufSize))<BUFFER_SIZE)
+
+			int left_size = BUFFER_SIZE;
+			int current_offset = 0;
+			while((ret=read_buffer(m_pFileBuf + current_offset,left_size))<left_size)
 			{
+				/*
 				memcpy(m_pFileBuf_tmp+nalu.size,m_pFileBuf,ret);
 				nalu.size=nalu.size+ret;
 				nalu.data=m_pFileBuf_tmp;
 				nalhead_pos=NO_MORE_BUFFER_TO_READ;
 				return FALSE;
+				*/
+				current_offset += ret;
+				left_size -= ret;
 			}
 			naltail_pos=0;
 			nalhead_pos=GOT_A_NAL_INCLUDE_A_BUFFER;
